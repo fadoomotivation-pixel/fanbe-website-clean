@@ -1,230 +1,99 @@
 import React, { useState } from 'react';
-import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
+import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const colors = {
-  navy: '#1a3a5c',
-  navyDark: '#0f2439',
-  teal: '#4a7c8a',
-  gold: '#c9a962',
-  goldLight: '#d4bc7d'
-};
+const C = { navy: '#1a3a5c', gold: '#c9a962' };
 
-function CrmLayout() {
-  const { user, logout, isAdmin, isSubAdmin } = useAuth();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+export default function CrmLayout() {
+  const { user, logout, canManage } = useAuth();
+  const loc = useLocation();
+  const nav = useNavigate();
+  const [showMore, setShowMore] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/crm/login');
-  };
-
-  const navItems = [
-    { path: '/crm/dashboard', label: 'Dashboard', icon: '📊' },
-    { path: '/crm/leads', label: 'All Leads', icon: '📋' },
-    { path: '/crm/leads/add', label: 'Add Lead', icon: '➕' },
-  ];
-
-  if (isAdmin || isSubAdmin) {
-    navItems.push({ path: '/crm/employees', label: 'Team', icon: '👥' });
-  }
-
-  const isActive = (path) => {
-    if (path === '/crm/dashboard') return location.pathname === path;
-    return location.pathname.startsWith(path);
-  };
+  const isActive = (path) => loc.pathname === path || (path !== '/crm' && loc.pathname.startsWith(path));
+  const handleLogout = () => { logout(); nav('/crm/login'); };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
-      {/* Sidebar */}
-      <aside style={{
-        width: '260px',
-        background: colors.navyDark,
-        display: 'none',
-        flexDirection: 'column',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        bottom: 0,
-        zIndex: 100
-      }} className="sidebar-desktop">
-        {/* Logo */}
-        <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
-            <div style={{
-              width: '44px',
-              height: '44px',
-              background: '#fff',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <span style={{ color: colors.navy, fontWeight: 'bold', fontSize: '18px', fontFamily: "'Playfair Display', serif" }}>FG</span>
-            </div>
-            <div>
-              <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '16px' }}>Fanbe CRM</div>
-              <div style={{ color: colors.gold, fontSize: '11px' }}>Lead Management</div>
-            </div>
-          </Link>
-        </div>
+    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+      <Outlet />
 
-        {/* Navigation */}
-        <nav style={{ flex: 1, padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {navItems.map(item => (
-            <Link
-              key={item.path}
-              to={item.path}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '12px 16px',
-                borderRadius: '10px',
-                textDecoration: 'none',
-                color: isActive(item.path) ? '#fff' : 'rgba(255,255,255,0.6)',
-                background: isActive(item.path) ? 'rgba(255,255,255,0.1)' : 'transparent',
-                fontSize: '14px',
-                fontWeight: '500',
-                transition: 'all 0.2s'
-              }}
-            >
-              <span style={{ fontSize: '18px' }}>{item.icon}</span>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-
-        {/* User Info */}
-        <div style={{ padding: '20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              background: colors.gold,
-              borderRadius: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: colors.navyDark,
-              fontWeight: 'bold',
-              fontSize: '16px'
-            }}>
-              {user?.name?.charAt(0) || 'U'}
-            </div>
-            <div>
-              <div style={{ color: '#fff', fontSize: '14px', fontWeight: '500' }}>{user?.name}</div>
-              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', textTransform: 'capitalize' }}>{user?.role}</div>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            style={{
-              width: '100%',
-              padding: '10px',
-              borderRadius: '8px',
-              border: 'none',
-              background: 'rgba(255,255,255,0.1)',
-              color: 'rgba(255,255,255,0.7)',
-              fontSize: '13px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
-            }}
-          >
-            🚪 Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* Mobile Header */}
-      <header style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '12px 20px',
-        background: colors.navyDark,
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 99
-      }} className="mobile-header">
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-          <div style={{ width: '36px', height: '36px', background: '#fff', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ color: colors.navy, fontWeight: 'bold', fontSize: '14px' }}>FG</span>
-          </div>
-          <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '16px' }}>Fanbe CRM</span>
+      {/* Bottom Navigation */}
+      <nav style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff',
+        borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-around',
+        padding: '8px 0', paddingBottom: 'max(8px, env(safe-area-inset-bottom))', zIndex: 50
+      }}>
+        <Link to="/crm" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textDecoration: 'none', padding: '6px 12px' }}>
+          <span style={{ fontSize: 22, opacity: isActive('/crm') && loc.pathname === '/crm' ? 1 : 0.5 }}>🏠</span>
+          <span style={{ fontSize: 10, color: isActive('/crm') && loc.pathname === '/crm' ? C.navy : '#64748b' }}>Home</span>
         </Link>
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          style={{ background: 'rgba(255,255,255,0.1)', border: 'none', padding: '10px', borderRadius: '8px', color: '#fff', fontSize: '20px', cursor: 'pointer' }}
-        >
-          ☰
-        </button>
-      </header>
 
-      {/* Mobile Sidebar */}
-      {sidebarOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 200 }} className="mobile-sidebar-overlay">
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} onClick={() => setSidebarOpen(false)} />
-          <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '280px', background: colors.navyDark, padding: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-              <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '18px' }}>Menu</span>
-              <button onClick={() => setSidebarOpen(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '24px', cursor: 'pointer' }}>✕</button>
+        <Link to="/crm/leads" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textDecoration: 'none', padding: '6px 12px' }}>
+          <span style={{ fontSize: 22, opacity: isActive('/crm/leads') ? 1 : 0.5 }}>📋</span>
+          <span style={{ fontSize: 10, color: isActive('/crm/leads') ? C.navy : '#64748b' }}>Leads</span>
+        </Link>
+
+        <Link to="/crm/call" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none', marginTop: -20 }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(34,197,94,0.4)' }}>
+            <span style={{ fontSize: 26 }}>📞</span>
+          </div>
+        </Link>
+
+        <Link to="/crm/report" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textDecoration: 'none', padding: '6px 12px' }}>
+          <span style={{ fontSize: 22, opacity: isActive('/crm/report') ? 1 : 0.5 }}>📊</span>
+          <span style={{ fontSize: 10, color: isActive('/crm/report') ? C.navy : '#64748b' }}>EOD</span>
+        </Link>
+
+        <button onClick={() => setShowMore(!showMore)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, background: 'none', border: 'none', cursor: 'pointer', padding: '6px 12px' }}>
+          <span style={{ fontSize: 22 }}>☰</span>
+          <span style={{ fontSize: 10, color: '#64748b' }}>More</span>
+        </button>
+      </nav>
+
+      {/* More Menu */}
+      {showMore && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100 }} onClick={() => setShowMore(false)}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} />
+          <div style={{ position: 'absolute', bottom: 70, left: 16, right: 16, background: '#fff', borderRadius: 20, padding: 16, maxHeight: '60vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid #f1f5f9', marginBottom: 8 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 12, background: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0f2439', fontWeight: 700, fontSize: 20 }}>
+                {user?.name?.[0]}
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, color: C.navy }}>{user?.name}</div>
+                <div style={{ fontSize: 12, color: '#64748b', textTransform: 'capitalize' }}>{user?.role}</div>
+              </div>
             </div>
-            {navItems.map(item => (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setSidebarOpen(false)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '14px 16px',
-                  borderRadius: '10px',
-                  textDecoration: 'none',
-                  color: isActive(item.path) ? '#fff' : 'rgba(255,255,255,0.6)',
-                  background: isActive(item.path) ? 'rgba(255,255,255,0.1)' : 'transparent',
-                  fontSize: '15px',
-                  marginBottom: '6px'
-                }}
-              >
-                <span style={{ fontSize: '20px' }}>{item.icon}</span>
-                {item.label}
+
+            {[
+              { to: '/crm/add', icon: '➕', label: 'Add New Lead' },
+              ...(canManage ? [
+                { to: '/crm/import', icon: '📤', label: 'Bulk Import' },
+                { to: '/crm/duplicates', icon: '🔍', label: 'Check Duplicates' }
+              ] : []),
+              { to: '/crm/report', icon: '📊', label: 'EOD Report' },
+              { to: '/', icon: '🌐', label: 'Go to Website' }
+            ].map(item => (
+              <Link key={item.to} to={item.to} onClick={() => setShowMore(false)} style={{
+                display: 'flex', alignItems: 'center', gap: 14, padding: '14px 8px',
+                textDecoration: 'none', borderRadius: 12
+              }}>
+                <span style={{ fontSize: 22 }}>{item.icon}</span>
+                <span style={{ fontWeight: 500, color: C.navy }}>{item.label}</span>
               </Link>
             ))}
-            <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-              <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', marginBottom: '8px' }}>{user?.name} ({user?.role})</div>
-              <button onClick={handleLogout} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: 'none', background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', cursor: 'pointer' }}>🚪 Logout</button>
-            </div>
+
+            <button onClick={handleLogout} style={{
+              display: 'flex', alignItems: 'center', gap: 14, padding: '14px 8px',
+              width: '100%', background: '#fef2f2', border: 'none', borderRadius: 12,
+              marginTop: 8, cursor: 'pointer'
+            }}>
+              <span style={{ fontSize: 22 }}>🚪</span>
+              <span style={{ fontWeight: 500, color: '#ef4444' }}>Logout</span>
+            </button>
           </div>
         </div>
       )}
-
-      {/* Main Content */}
-      <main style={{ flex: 1, marginLeft: '0', paddingTop: '60px' }} className="main-content">
-        <Outlet />
-      </main>
-
-      <style>{`
-        @media (min-width: 1024px) {
-          .sidebar-desktop { display: flex !important; }
-          .mobile-header { display: none !important; }
-          .main-content { margin-left: 260px !important; padding-top: 0 !important; }
-        }
-        @media (max-width: 1023px) {
-          .sidebar-desktop { display: none !important; }
-          .mobile-header { display: flex !important; }
-        }
-      `}</style>
     </div>
   );
 }
-
-export default CrmLayout;

@@ -1,71 +1,54 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { LanguageProvider } from './context/LanguageContext';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-// Website Pages
-import HomePage from './pages/HomePage';
-import ProjectsPage from './pages/ProjectsPage';
-import ProjectDetail from './pages/ProjectDetail';
-import AboutPage from './pages/AboutPage';
-import ContactPage from './pages/ContactPage';
-
-// Website Components
-import Header from './components/Header';
-import Footer from './components/Footer';
-import WhatsAppButton from './components/WhatsAppButton';
-
-// CRM
+// Contexts
 import { AuthProvider } from './crm/context/AuthContext';
 import { LeadProvider } from './crm/context/LeadContext';
+
+// Website
+import Home from './pages/Home';
+
+// CRM
 import ProtectedRoute from './crm/components/ProtectedRoute';
 import CrmLayout from './crm/components/CrmLayout';
-import LoginPage from './crm/pages/LoginPage';
+import Login from './crm/pages/Login';
 import Dashboard from './crm/pages/Dashboard';
-import LeadsList from './crm/pages/LeadsList';
-import AddLead from './crm/pages/AddLead';
+import Leads from './crm/pages/Leads';
 import LeadDetail from './crm/pages/LeadDetail';
+import AddLead from './crm/pages/AddLead';
+import QuickCall from './crm/pages/QuickCall';
+import EODReport from './crm/pages/EODReport';
+import BulkImport from './crm/pages/BulkImport';
+import Duplicates from './crm/pages/Duplicates';
 
-// Website Layout
-function WebsiteLayout({ children }) {
+export default function App() {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Header />
-      <main style={{ flex: 1 }}>{children}</main>
-      <Footer />
-      <WhatsAppButton />
-    </div>
+    <AuthProvider>
+      <LeadProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Website */}
+            <Route path="/" element={<Home />} />
+
+            {/* CRM */}
+            <Route path="/crm/login" element={<Login />} />
+            
+            <Route path="/crm" element={<ProtectedRoute><CrmLayout /></ProtectedRoute>}>
+              <Route index element={<Dashboard />} />
+              <Route path="leads" element={<Leads />} />
+              <Route path="lead/:id" element={<LeadDetail />} />
+              <Route path="add" element={<AddLead />} />
+              <Route path="call" element={<QuickCall />} />
+              <Route path="report" element={<EODReport />} />
+              <Route path="import" element={<BulkImport />} />
+              <Route path="duplicates" element={<Duplicates />} />
+            </Route>
+
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </LeadProvider>
+    </AuthProvider>
   );
 }
-
-function App() {
-  return (
-    <LanguageProvider>
-      <AuthProvider>
-        <LeadProvider>
-          <BrowserRouter>
-            <Routes>
-              {/* Website Routes */}
-              <Route path="/" element={<WebsiteLayout><HomePage /></WebsiteLayout>} />
-              <Route path="/projects" element={<WebsiteLayout><ProjectsPage /></WebsiteLayout>} />
-              <Route path="/projects/:id" element={<WebsiteLayout><ProjectDetail /></WebsiteLayout>} />
-              <Route path="/about" element={<WebsiteLayout><AboutPage /></WebsiteLayout>} />
-              <Route path="/contact" element={<WebsiteLayout><ContactPage /></WebsiteLayout>} />
-
-              {/* CRM Routes */}
-              <Route path="/crm/login" element={<LoginPage />} />
-              <Route path="/crm" element={<ProtectedRoute><CrmLayout /></ProtectedRoute>}>
-                <Route index element={<Dashboard />} />
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="leads" element={<LeadsList />} />
-                <Route path="leads/add" element={<AddLead />} />
-                <Route path="leads/:id" element={<LeadDetail />} />
-              </Route>
-            </Routes>
-          </BrowserRouter>
-        </LeadProvider>
-      </AuthProvider>
-    </LanguageProvider>
-  );
-}
-
-export default App;
