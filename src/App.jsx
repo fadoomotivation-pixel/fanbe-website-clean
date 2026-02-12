@@ -12,14 +12,16 @@ import Footer from './components/Footer';
 import WhatsAppButton from './components/WhatsAppButton';
 import { LanguageProvider } from './context/LanguageContext';
 
-// CRM imports (new)
+// CRM imports
 import { AuthProvider } from './crm/context/AuthContext';
 import { LeadProvider } from './crm/context/LeadContext';
 import ProtectedRoute from './crm/components/ProtectedRoute';
 import CrmLayout from './crm/components/CrmLayout';
 import Login from './crm/pages/Login';
 import Dashboard from './crm/pages/Dashboard';
-// ... all other CRM imports
+import Leads from './crm/pages/Leads';
+import BulkUpload from './crm/pages/BulkUpload';
+// ... import other CRM pages (AddLead, LeadDetail, BulkImport, etc.)
 
 export default function App() {
   return (
@@ -27,7 +29,6 @@ export default function App() {
       <AuthProvider>
         <LeadProvider>
           <BrowserRouter>
-            {/* Website Header */}
             <Header />
             
             <Routes>
@@ -43,13 +44,16 @@ export default function App() {
               <Route path="/crm" element={<ProtectedRoute><CrmLayout /></ProtectedRoute>}>
                 <Route index element={<Dashboard />} />
                 <Route path="leads" element={<Leads />} />
-                {/* ... all CRM routes */}
+                <Route path="bulk-upload" element={<BulkUpload />} />
+                {/* Add other CRM routes: */}
+                {/* <Route path="add-lead" element={<AddLead />} /> */}
+                {/* <Route path="lead/:id" element={<LeadDetail />} /> */}
+                {/* <Route path="import" element={<BulkImport />} /> */}
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
 
-            {/* Website Footer & WhatsApp */}
             <Footer />
             <WhatsAppButton />
           </BrowserRouter>
