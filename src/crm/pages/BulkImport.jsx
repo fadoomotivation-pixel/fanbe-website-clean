@@ -1,59 +1,50 @@
-# 1. Save code above to src/crm/pages/BulkUpload.jsx (VSCode/nano)
-# 2. Fix LanguageContext delete (create new)
-mkdir -p src/context
-cat > src/context/LanguageContext.jsx << 'EOF'
-import React, { createContext, useState } from 'react';
-
-const LanguageContext = createContext();
-
-export const LanguageProvider
-
-
 import React, { useState } from 'react';
-import { Upload, X, Check } from 'lucide-react';
+import { Upload, Download } from 'lucide-react';
 
-const BulkUpload = () => {
-  const [files, setFiles] = useState([]);
-  const [status, setStatus] = useState('idle');
+const BulkImport = () => {
+  const [csvData, setCsvData] = useState([]);
+  const [mapping, setMapping] = useState({});
 
-  const handleUpload = (e) => {
-    const newFiles = Array.from(e.target.files);
-    setFiles(newFiles.map(f => ({ name: f.name, size: f.size })));
-    setStatus('ready');
-  };
-
-  const uploadAll = () => {
-    setStatus('uploading');
-    setTimeout(() => setStatus('complete'), 2000);
+  const handleCSV = (e) => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      const rows = text.split('\n').map(row => row.split(','));
+      setCsvData(rows);
+    };
+    reader.readAsText(file);
   };
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8">Bulk Upload</h1>
-      
-      <input type="file" multiple onChange={handleUpload} className="mb-6 p-4 border-2 border-dashed rounded-xl" />
-      
-      {files.length > 0 && (
-        <div className="space-y-3 mb-6">
-          {files.map((file, i) => (
-            <div key={i} className="flex items-center gap-4 p-4 bg-gray-100 rounded-xl">
-              <Upload className="w-6 h-6 text-indigo-600" />
-              <span>{file.name} ({(file.size/1024).toFixed(1)}KB)</span>
-              <X className="ml-auto cursor-pointer" onClick={() => setFiles([])} />
-            </div>
-          ))}
+    <div className="p-8 max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold mb-8">Bulk Import (CSV)</h1>
+      <input type="file" accept=".csv" onChange={handleCSV} className="mb-6 p-4 border-2 rounded-xl w-full" />
+      {csvData.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-indigo-100">
+                {csvData[0].map((header, i) => (
+                  <th key={i} className="border p-3">{header}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {csvData.slice(1, 6).map((row, i) => (
+                <tr key={i}>
+                  {row.map((cell, j) => (
+                    <td key={j} className="border p-2">{cell}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <button className="mt-6 bg-green-600 text-white py-3 px-8 rounded-xl font-bold">Import {csvData.length - 1} Leads</button>
         </div>
       )}
-      
-      <button 
-        onClick={uploadAll}
-        className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 px-8 rounded-xl font-bold hover:shadow-xl transition"
-        disabled={status === 'uploading'}
-      >
-        {status === 'uploading' ? <Check className="w-6 h-6 mx-auto animate-spin" /> : 'Upload All'}
-      </button>
     </div>
   );
 };
 
-export default BulkUpload;
+export default BulkImport;
