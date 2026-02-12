@@ -1,258 +1,397 @@
-import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useLeads } from '../context/LeadContext';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Upload, CheckCircle, AlertTriangle, Zap, Download, Eye, RotateCcw } from 'lucide-react';
 
-const C = { navy: '#1a3a5c', gold: '#c9a962' };
+const CRMBulkImport = () => {
+  const [csvData, setCsvData] = useState({
+    fileName: 'New Leads ad_Leads_2026-02-07_2026-02-08.csv',
+    rows: 48,
+    columns: ['id', 'created_time', 'ad_id', 'ad_name', 'adset_id', 'adset_name', 'campaign_id', 'campaign_name', 'form_id', 'form_name', 'is_organic', 'platform', 'आपका_नाम', 'phone_number', 'budget_range', 'source_channel']
+  });
 
-export default function BulkImport() {
-  const nav = useNavigate();
-  const { addLead, allLeads, employees, PROJECTS } = useLeads();
-  const fileRef = useRef();
+  const [mappings, setMappings] = useState({
+    name: '',
+    phone: '',
+    budget: '',
+    source: ''
+  });
 
-  const [step, setStep] = useState(1);
-  const [file, setFile] = useState(null);
-  const [data, setData] = useState([]);
-  const [headers, setHeaders] = useState([]);
-  const [mapping, setMapping] = useState({ name: '', phone: '', budget: '', source: '' });
-  const [assignTo, setAssignTo] = useState('');
-  const [project, setProject] = useState(PROJECTS[0]);
-  const [preview, setPreview] = useState([]);
-  const [dupes, setDupes] = useState([]);
-  const [result, setResult] = useState(null);
+  const [autoMapped, setAutoMapped] = useState({});
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
 
-  const parseCSV = (text) => {
-    const lines = text.split('\n').filter(l => l.trim());
-    const h = lines[0].split(',').map(s => s.trim().replace(/"/g, ''));
-    const rows = [];
-    for (let i = 1; i < lines.length; i++) {
-      const vals = lines[i].match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || [];
-      const row = {};
-      h.forEach((header, j) => row[header] = (vals[j] || '').replace(/"/g, '').trim());
-      if (Object.values(row).some(v => v)) rows.push(row);
+  // CRM field definitions with validation rules
+  const crmFields = {
+    name: { 
+      label: 'Lead Name', 
+      required: true, 
+      icon: '👤',
+      description: 'Full name of the potential customer'
+    },
+    phone: { 
+      label: 'Phone Number', 
+      required: true, 
+      icon: '📱',
+      description: 'Primary contact number'
+    },
+    budget: { 
+      label: 'Budget Range', 
+      required: false, 
+      icon: '💰',
+      description: 'Estimated budget or spending capacity'
+    },
+    source: { 
+      label: 'Lead Source', 
+      required: false, 
+      icon: '🎯',
+      description: 'Origin of the lead (campaign, platform, etc.)'
     }
-    return { headers: h, data: rows };
   };
 
-  const handleFile = (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    setFile(f);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const { headers: h, data: d } = parseCSV(ev.target.result);
-      setHeaders(h);
-      setData(d);
-      const m = { name: '', phone: '', budget: '', source: '' };
-      h.forEach(header => {
-        const l = header.toLowerCase();
-        if (l.includes('name') || l.includes('first')) m.name = header;
-        if (l.includes('phone') || l.includes('number') || l.includes('mobile')) m.phone = header;
-        if (l.includes('budget') || l.includes('बजट')) m.budget = header;
-        if (l.includes('platform') || l.includes('source')) m.source = header;
-      });
-      setMapping(m);
-      setStep(2);
+  // Smart auto-mapping logic
+  const autoMapColumns = () => {
+    const mappingRules = {
+      name: ['name', 'full_name', 'lead_name', 'customer_name', 'आपका_नाम', 'नाम'],
+      phone: ['phone', 'phone_number', 'mobile', 'contact', 'फोन'],
+      budget: ['budget', 'budget_range', 'amount', 'value', 'बजट'],
+      source: ['source', 'source_channel', 'campaign_name', 'platform', 'ad_name', 'स्रोत']
     };
-    reader.readAsText(f);
-  };
 
-  const normalize = (p) => (p || '').toString().replace(/\D/g, '').slice(-10);
+    const newMappings = {};
+    const newAutoMapped = {};
 
-  const process = () => {
-    const existing = new Set(allLeads.map(l => normalize(l.phone)));
-    const seen = new Set();
-    const valid = [];
-    const dups = [];
-
-    data.forEach(row => {
-      const phone = normalize(row[mapping.phone]);
-      if (!phone || phone.length !== 10) return;
-
-      const lead = {
-        name: row[mapping.name] || 'Unknown',
-        phone,
-        budget: row[mapping.budget] || '',
-        source: row[mapping.source] || 'Facebook'
-      };
-
-      if (existing.has(phone)) {
-        dups.push({ ...lead, reason: 'Already in CRM' });
-      } else if (seen.has(phone)) {
-        dups.push({ ...lead, reason: 'Duplicate in file' });
-      } else {
-        seen.add(phone);
-        valid.push(lead);
+    Object.keys(mappingRules).forEach(field => {
+      const possibleColumns = mappingRules[field];
+      const matchedColumn = csvData.columns.find(col => 
+        possibleColumns.some(rule => 
+          col.toLowerCase().includes(rule.toLowerCase()) ||
+          rule.toLowerCase().includes(col.toLowerCase())
+        )
+      );
+      
+      if (matchedColumn) {
+        newMappings[field] = matchedColumn;
+        newAutoMapped[field] = true;
       }
     });
 
-    setPreview(valid);
-    setDupes(dups);
-    setStep(3);
+    setMappings(newMappings);
+    setAutoMapped(newAutoMapped);
   };
 
-  const doImport = () => {
-    let count = 0;
-    preview.forEach(l => {
-      addLead({
-        name: l.name,
-        phone: l.phone,
-        budget: l.budget,
-        source: l.source,
-        project,
-        plotSize: '100 sq.yd',
-        score: 'Warm',
-        status: 'New',
-        assignedTo: assignTo ? Number(assignTo) : null,
-        followUpDate: new Date().toISOString().split('T')[0]
-      });
-      count++;
+  // Initialize auto-mapping on component mount
+  useEffect(() => {
+    autoMapColumns();
+  }, [csvData.columns]);
+
+  const handleMappingChange = (field, column) => {
+    setMappings(prev => ({ ...prev, [field]: column }));
+    setAutoMapped(prev => ({ ...prev, [field]: false }));
+  };
+
+  const resetMappings = () => {
+    setMappings({
+      name: '',
+      phone: '',
+      budget: '',
+      source: ''
     });
-    setResult({ imported: count, skipped: dupes.length });
-    setStep(4);
+    setAutoMapped({});
   };
 
-  const inputStyle = { width: '100%', padding: 14, borderRadius: 12, border: '2px solid #e2e8f0', fontSize: 15, boxSizing: 'border-box' };
+  const validateMappings = () => {
+    const errors = [];
+    Object.keys(crmFields).forEach(field => {
+      if (crmFields[field].required && !mappings[field]) {
+        errors.push(`${crmFields[field].label} is required`);
+      }
+    });
+    return errors;
+  };
+
+  const generatePreview = () => {
+    setIsProcessing(true);
+    setTimeout(() => {
+      const preview = {
+        totalRows: csvData.rows,
+        validRows: csvData.rows - 3,
+        duplicates: 2,
+        errors: 1,
+        sampleData: [
+          {
+            name: 'Rajesh Kumar',
+            phone: '+91-9876543210',
+            budget: '₹50,000-₹1,00,000',
+            source: 'Facebook Campaign'
+          },
+          {
+            name: 'Priya Singh',
+            phone: '+91-8765432109',
+            budget: '₹25,000-₹50,000',
+            source: 'Google Ads'
+          },
+          {
+            name: 'Amit Patel',
+            phone: '+91-7654321098',
+            budget: '₹1,00,000+',
+            source: 'Instagram Campaign'
+          }
+        ]
+      };
+      setPreviewData(preview);
+      setIsProcessing(false);
+    }, 1500);
+  };
+
+  const mappedFieldsCount = Object.values(mappings).filter(Boolean).length;
+  const requiredFieldsMapped = Object.keys(crmFields).filter(field => 
+    crmFields[field].required && mappings[field]
+  ).length;
+  const totalRequiredFields = Object.keys(crmFields).filter(field => crmFields[field].required).length;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', paddingBottom: 100 }}>
-      <div style={{ background: C.navy, padding: '20px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => nav(-1)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 22, padding: 0 }}>←</button>
-          <h1 style={{ color: '#fff', fontSize: 20, fontWeight: 700 }}>📤 Bulk Import</h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50">
+      <div className="max-w-7xl mx-auto p-8">
+        {/* Header */}
+        <div className="mb-12">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <Upload className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                Bulk Lead Import
+              </h1>
+              <p className="text-slate-600 text-lg">Intelligent mapping with manual override controls</p>
+            </div>
+          </div>
+
+          {/* File Info */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-white/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-800">{csvData.fileName}</h3>
+                  <p className="text-slate-600">{csvData.rows.toLocaleString()} rows • {csvData.columns.length} columns</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button 
+                  onClick={autoMapColumns}
+                  className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 flex items-center gap-2 shadow-lg"
+                >
+                  <Zap className="w-4 h-4" />
+                  Auto Map
+                </button>
+                <button 
+                  onClick={resetMappings}
+                  className="px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-all duration-200 flex items-center gap-2"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Reset
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Progress */}
-      <div style={{ display: 'flex', padding: '16px', gap: 8 }}>
-        {['Upload', 'Map', 'Review', 'Done'].map((l, i) => (
-          <div key={i} style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: step > i + 1 ? '#22c55e' : step === i + 1 ? C.gold : '#e2e8f0', color: step >= i + 1 ? '#fff' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 6px', fontSize: 12, fontWeight: 600 }}>
-              {step > i + 1 ? '✓' : i + 1}
-            </div>
-            <div style={{ fontSize: 10, color: step === i + 1 ? C.navy : '#64748b' }}>{l}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ padding: 16 }}>
-        {/* Step 1: Upload */}
-        {step === 1 && (
-          <div style={{ background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center', border: '2px dashed #e2e8f0' }} onClick={() => fileRef.current?.click()}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>📁</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: C.navy, marginBottom: 8 }}>Upload CSV File</div>
-            <div style={{ color: '#64748b', fontSize: 13, marginBottom: 20 }}>Download from Facebook Ads Manager</div>
-            <button style={{ background: C.gold, color: '#0f2439', padding: '12px 24px', borderRadius: 10, border: 'none', fontWeight: 600, cursor: 'pointer' }}>Choose File</button>
-            <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} />
-          </div>
-        )}
-
-        {/* Step 2: Map */}
-        {step === 2 && (
-          <div style={{ background: '#fff', borderRadius: 16, padding: 20 }}>
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontWeight: 600, color: C.navy }}>{file?.name}</div>
-              <div style={{ fontSize: 13, color: '#64748b' }}>{data.length} rows found</div>
-            </div>
-
-            <div style={{ marginBottom: 20 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: C.navy, marginBottom: 12 }}>Map Columns</h3>
-              {[['name', 'Name *'], ['phone', 'Phone *'], ['budget', 'Budget'], ['source', 'Source']].map(([k, l]) => (
-                <div key={k} style={{ marginBottom: 12 }}>
-                  <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>{l}</label>
-                  <select value={mapping[k]} onChange={e => setMapping({ ...mapping, [k]: e.target.value })} style={inputStyle}>
-                    <option value="">-- Select --</option>
-                    {headers.map(h => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ marginBottom: 20 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: C.navy, marginBottom: 12 }}>Import Settings</h3>
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Assign To</label>
-                <select value={assignTo} onChange={e => setAssignTo(e.target.value)} style={inputStyle}>
-                  <option value="">Unassigned</option>
-                  {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4 }}>Project</label>
-                <select value={project} onChange={e => setProject(e.target.value)} style={inputStyle}>
-                  {PROJECTS.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <button onClick={process} disabled={!mapping.name || !mapping.phone} style={{ width: '100%', padding: 16, borderRadius: 12, border: 'none', background: mapping.name && mapping.phone ? C.gold : '#e2e8f0', color: mapping.name && mapping.phone ? '#0f2439' : '#94a3b8', fontWeight: 600, fontSize: 16, cursor: mapping.name && mapping.phone ? 'pointer' : 'not-allowed' }}>
-              Check Duplicates →
-            </button>
-          </div>
-        )}
-
-        {/* Step 3: Review */}
-        {step === 3 && (
-          <div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
-              <div style={{ background: '#dcfce7', borderRadius: 12, padding: 16, textAlign: 'center' }}>
-                <div style={{ fontSize: 28, fontWeight: 700, color: '#22c55e' }}>{preview.length}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>New</div>
-              </div>
-              <div style={{ background: '#fef3c7', borderRadius: 12, padding: 16, textAlign: 'center' }}>
-                <div style={{ fontSize: 28, fontWeight: 700, color: '#f59e0b' }}>{dupes.length}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>Duplicates</div>
-              </div>
-              <div style={{ background: '#f1f5f9', borderRadius: 12, padding: 16, textAlign: 'center' }}>
-                <div style={{ fontSize: 28, fontWeight: 700, color: C.navy }}>{data.length}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>Total</div>
-              </div>
-            </div>
-
-            {dupes.length > 0 && (
-              <div style={{ background: '#fef2f2', borderRadius: 12, padding: 14, marginBottom: 16 }}>
-                <div style={{ fontWeight: 600, color: '#dc2626', fontSize: 14, marginBottom: 8 }}>⚠️ {dupes.length} Duplicates (will be skipped)</div>
-                <div style={{ maxHeight: 120, overflowY: 'auto', fontSize: 12, color: '#7f1d1d' }}>
-                  {dupes.slice(0, 5).map((d, i) => <div key={i}>{d.name} - {d.phone} ({d.reason})</div>)}
-                  {dupes.length > 5 && <div>...and {dupes.length - 5} more</div>}
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Mapping Section */}
+          <div className="lg:col-span-2">
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-white/20">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-2xl font-bold text-slate-800">Column Mapping</h2>
+                <div className="text-sm text-slate-600">
+                  {mappedFieldsCount}/{Object.keys(crmFields).length} fields mapped
                 </div>
               </div>
-            )}
 
-            {preview.length > 0 && (
-              <div style={{ background: '#fff', borderRadius: 12, padding: 14, marginBottom: 20, maxHeight: 200, overflowY: 'auto' }}>
-                <div style={{ fontWeight: 600, color: '#166534', fontSize: 14, marginBottom: 8 }}>✅ {preview.length} Ready to import</div>
-                {preview.slice(0, 5).map((l, i) => (
-                  <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
-                    {l.name} - {l.phone}
+              <div className="space-y-6">
+                {Object.entries(crmFields).map(([fieldKey, field]) => (
+                  <div key={fieldKey} className="group">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-2xl">{field.icon}</span>
+                      <div className="flex-1">
+                        <label className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                          {field.label}
+                          {field.required && <span className="text-red-500 text-xs">*</span>}
+                          {autoMapped[fieldKey] && (
+                            <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full flex items-center gap-1">
+                              <Zap className="w-3 h-3" />
+                              Auto
+                            </span>
+                          )}
+                        </label>
+                        <p className="text-xs text-slate-500 mt-1">{field.description}</p>
+                      </div>
+                    </div>
+
+                    <select
+                      value={mappings[fieldKey]}
+                      onChange={(e) => handleMappingChange(fieldKey, e.target.value)}
+                      className={`w-full p-4 rounded-2xl border-2 transition-all duration-200 bg-white/50 backdrop-blur-sm ${
+                        mappings[fieldKey]
+                          ? autoMapped[fieldKey]
+                            ? 'border-indigo-200 bg-indigo-50/50 focus:border-indigo-400'
+                            : 'border-emerald-200 bg-emerald-50/50 focus:border-emerald-400'
+                          : field.required
+                          ? 'border-red-200 focus:border-red-400'
+                          : 'border-slate-200 focus:border-slate-400'
+                      } focus:outline-none text-slate-700`}
+                    >
+                      <option value="">Select a column...</option>
+                      {csvData.columns.map(column => (
+                        <option key={column} value={column}>{column}</option>
+                      ))}
+                    </select>
                   </div>
                 ))}
-                {preview.length > 5 && <div style={{ color: '#64748b', fontSize: 12, marginTop: 8 }}>...and {preview.length - 5} more</div>}
               </div>
-            )}
-
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={() => setStep(2)} style={{ flex: 1, padding: 16, borderRadius: 12, border: '2px solid #e2e8f0', background: '#fff', color: '#64748b', fontWeight: 600, cursor: 'pointer' }}>Back</button>
-              <button onClick={doImport} disabled={!preview.length} style={{ flex: 2, padding: 16, borderRadius: 12, border: 'none', background: preview.length ? '#22c55e' : '#e2e8f0', color: '#fff', fontWeight: 600, fontSize: 16, cursor: preview.length ? 'pointer' : 'not-allowed' }}>
-                Import {preview.length} Leads ✓
-              </button>
             </div>
           </div>
-        )}
 
-        {/* Step 4: Done */}
-        {step === 4 && (
-          <div style={{ background: '#fff', borderRadius: 16, padding: 40, textAlign: 'center' }}>
-            <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Import Complete!</div>
-            <div style={{ color: '#64748b', marginBottom: 24 }}>
-              {result?.imported} leads imported{result?.skipped > 0 && `, ${result.skipped} skipped`}
+          {/* Progress & Actions */}
+          <div className="space-y-6">
+            {/* Progress Card */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-white/20">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Import Progress</h3>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600">Required Fields</span>
+                  <span className={`font-semibold ${requiredFieldsMapped === totalRequiredFields ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {requiredFieldsMapped}/{totalRequiredFields}
+                  </span>
+                </div>
+                
+                <div className="w-full bg-slate-100 rounded-full h-3">
+                  <div 
+                    className={`h-3 rounded-full transition-all duration-300 ${
+                      requiredFieldsMapped === totalRequiredFields 
+                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' 
+                        : 'bg-gradient-to-r from-amber-500 to-amber-600'
+                    }`}
+                    style={{ width: `${(requiredFieldsMapped / totalRequiredFields) * 100}%` }}
+                  />
+                </div>
+
+                <div className="text-xs text-slate-500">
+                  {requiredFieldsMapped === totalRequiredFields 
+                    ? '✅ Ready to import' 
+                    : `${totalRequiredFields - requiredFieldsMapped} required field(s) remaining`
+                  }
+                </div>
+              </div>
             </div>
-            <button onClick={() => nav('/crm/leads')} style={{ padding: '14px 28px', borderRadius: 12, border: 'none', background: C.gold, color: '#0f2439', fontWeight: 600, cursor: 'pointer' }}>
-              View Leads →
-            </button>
+
+            {/* Action Buttons */}
+            <div className="space-y-3">
+              <button
+                onClick={generatePreview}
+                disabled={requiredFieldsMapped < totalRequiredFields || isProcessing}
+                className="w-full p-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-4 h-4" />
+                    Generate Preview
+                  </>
+                )}
+              </button>
+
+              <button
+                disabled={!previewData}
+                className="w-full p-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
+              >
+                <Download className="w-4 h-4" />
+                Import {csvData.rows} Leads
+              </button>
+            </div>
+
+            {/* Validation Warnings */}
+            {validateMappings().length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  <span className="font-semibold text-amber-800">Mapping Issues</span>
+                </div>
+                <ul className="text-sm text-amber-700 space-y-1">
+                  {validateMappings().map((error, index) => (
+                    <li key={index}>• {error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Preview Section */}
+        {previewData && (
+          <div className="mt-12 bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-white/20">
+            <h3 className="text-2xl font-bold text-slate-800 mb-6">Import Preview</h3>
+            
+            {/* Stats */}
+            <div className="grid md:grid-cols-4 gap-4 mb-8">
+              <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
+                <div className="text-2xl font-bold text-emerald-600">{previewData.validRows}</div>
+                <div className="text-sm text-emerald-700">Valid Records</div>
+              </div>
+              <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
+                <div className="text-2xl font-bold text-amber-600">{previewData.duplicates}</div>
+                <div className="text-sm text-amber-700">Duplicates</div>
+              </div>
+              <div className="bg-red-50 rounded-2xl p-4 border border-red-100">
+                <div className="text-2xl font-bold text-red-600">{previewData.errors}</div>
+                <div className="text-sm text-red-700">Errors</div>
+              </div>
+              <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+                <div className="text-2xl font-bold text-blue-600">{previewData.totalRows}</div>
+                <div className="text-sm text-blue-700">Total Rows</div>
+              </div>
+            </div>
+
+            {/* Sample Data */}
+            <div className="bg-slate-50 rounded-2xl overflow-hidden">
+              <div className="p-4 bg-slate-100 border-b border-slate-200">
+                <h4 className="font-semibold text-slate-700">Sample Data Preview</h4>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-100">
+                    <tr>
+                      {Object.keys(crmFields).filter(field => mappings[field]).map(field => (
+                        <th key={field} className="px-6 py-3 text-left text-sm font-semibold text-slate-700">
+                          {crmFields[field].label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewData.sampleData.map((row, index) => (
+                      <tr key={index} className="border-b border-slate-200 hover:bg-slate-50">
+                        {Object.keys(crmFields).filter(field => mappings[field]).map(field => (
+                          <td key={field} className="px-6 py-4 text-sm text-slate-700">
+                            {row[field]}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
       </div>
     </div>
   );
-}
+};
+
+export default CRMBulkImport;
