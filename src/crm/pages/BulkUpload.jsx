@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Upload, X } from 'lucide-react';
 
@@ -13,12 +12,7 @@ const BulkUpload = () => {
   return (
     <div className="p-8 max-w-2xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Bulk Upload</h1>
-      <input 
-        type="file" 
-        multiple 
-        onChange={handleUpload} 
-        className="mb-6 p-4 border-2 border-dashed rounded-xl w-full"
-      />
+      <input type="file" multiple onChange={handleUpload} className="mb-6 p-4 border-2 border-dashed rounded-xl w-full" />
       {files.length > 0 && (
         <div className="space-y-3">
           {files.map((file, i) => (
@@ -30,12 +24,9 @@ const BulkUpload = () => {
           ))}
         </div>
       )}
-      <button className="w-full mt-6 bg-indigo-600 text-white py-4 rounded-xl font-bold">
-        Upload All
-      </button>
+      <button className="w-full mt-6 bg-indigo-600 text-white py-4 rounded-xl font-bold">Upload All</button>
     </div>
   );
 };
 
 export default BulkUpload;
-
