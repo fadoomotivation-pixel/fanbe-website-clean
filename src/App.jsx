@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-// Website imports (restored)
+// Website imports
 import HomePage from './pages/HomePage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetail from './pages/ProjectDetail';
@@ -21,7 +21,11 @@ import Login from './crm/pages/Login';
 import Dashboard from './crm/pages/Dashboard';
 import Leads from './crm/pages/Leads';
 import BulkUpload from './crm/pages/BulkUpload';
-// ... import other CRM pages (AddLead, LeadDetail, BulkImport, etc.)
+import InvestorDashboard from './crm/pages/InvestorDashboard'; // ✅ NEW: Add this import
+// Uncomment/add as files exist:
+import BulkImport from './crm/pages/BulkImport'; // Existing
+// import AddLead from './crm/pages/AddLead';
+// import LeadDetail from './crm/pages/LeadDetail';
 
 export default function App() {
   return (
@@ -45,10 +49,10 @@ export default function App() {
                 <Route index element={<Dashboard />} />
                 <Route path="leads" element={<Leads />} />
                 <Route path="bulk-upload" element={<BulkUpload />} />
-                {/* Add other CRM routes: */}
+                <Route path="investors" element={<InvestorDashboard />} /> {/* ✅ Live */}
+                <Route path="import" element={<BulkImport />} /> {/* Existing */}
                 {/* <Route path="add-lead" element={<AddLead />} /> */}
                 {/* <Route path="lead/:id" element={<LeadDetail />} /> */}
-                {/* <Route path="import" element={<BulkImport />} /> */}
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />
