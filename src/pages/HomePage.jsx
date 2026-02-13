@@ -75,6 +75,56 @@ const HomePage = () => {
 
         </div>
       </section>
+{/* ================= INVESTOR AUTHORITY ================= */}
+<section className="py-28 bg-gradient-to-b from-black to-gray-900 px-6">
+  <div className="max-w-6xl mx-auto text-center">
+
+    <h2 className="text-4xl md:text-5xl font-serif font-bold mb-10">
+      A Structured Approach to Land Investment
+    </h2>
+
+    <p className="text-gray-400 text-lg max-w-3xl mx-auto mb-16">
+      At Fanbe Group, we develop plotted communities with a long-term 
+      appreciation vision. Our developments are positioned in high-growth 
+      corridors of Vrindavan with structured planning, transparent documentation, 
+      and disciplined investment models.
+    </p>
+
+    <div className="grid md:grid-cols-3 gap-10">
+
+      <div className="bg-gray-800 p-8 rounded-2xl border border-gray-700 hover:border-amber-400 transition">
+        <h3 className="text-2xl font-bold text-amber-400 mb-4">
+          High Growth Corridors
+        </h3>
+        <p className="text-gray-400">
+          Projects located near NH connectivity, temple zones, and expanding
+          tourism infrastructure ensuring long-term appreciation potential.
+        </p>
+      </div>
+
+      <div className="bg-gray-800 p-8 rounded-2xl border border-gray-700 hover:border-amber-400 transition">
+        <h3 className="text-2xl font-bold text-amber-400 mb-4">
+          Disciplined Payment Models
+        </h3>
+        <p className="text-gray-400">
+          Structured EMI plans designed to maintain liquidity while building
+          long-term land assets without heavy upfront capital pressure.
+        </p>
+      </div>
+
+      <div className="bg-gray-800 p-8 rounded-2xl border border-gray-700 hover:border-amber-400 transition">
+        <h3 className="text-2xl font-bold text-amber-400 mb-4">
+          Asset-Backed Investment
+        </h3>
+        <p className="text-gray-400">
+          Tangible land ownership with registry transparency, making it a
+          secure hedge against inflation and market volatility.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</section>
 
       {/* ================= PROJECTS ================= */}
       <section className="py-24 bg-black px-6">
